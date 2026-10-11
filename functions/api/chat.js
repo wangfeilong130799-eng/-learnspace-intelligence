@@ -1,63 +1,57 @@
 export async function onRequestPost(context) {
-  try {
-    const { request, env } = context;
+  const { request, env } = context;
 
+  const workerUrl =
+    "https://learnspace-ai-proxy.wangfeilong130799.workers.dev/api/chat";
+
+  if (!env.PROXY_KEY) {
+    return Response.json(
+      { error: "服务器尚未配置 PROXY_KEY" },
+      { status: 500 }
+    );
+  }
+
+  try {
     const body = await request.json();
     const message = body.message;
 
-    if (!message || typeof message !== "string") {
+    if (typeof message !== "string" || !message.trim()) {
       return Response.json(
-        { error: "请输入你的问题。" },
+        { error: "请输入问题后再试" },
         { status: 400 }
       );
     }
 
-    if (!env.AI_API_KEY) {
-      return Response.json(
-        { error: "AI 服务尚未配置，请稍后再试。" },
-        { status: 503 }
-      );
-    }
-
-    const response = await fetch(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${env.AI_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            {
-              role: "system",
-              content: "你是一名友好、严谨的 AI 学习助手。请用清晰易懂的中文帮助学生理解知识、分析问题和提升学习能力。"
-            },
-            {
-              role: "user",
-              content: message.slice(0, 8000)
-            }
-          ]
-        })
-      }
-    );
+    const response = await fetch(workerUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${env.PROXY_KEY}`
+      },
+      body: JSON.stringify({
+        message: message.trim()
+      })
+    });
 
     const data = await response.json();
 
     if (!response.ok) {
       return Response.json(
-        { error: "AI 服务暂时无法使用，请检查 API 配置。" },
-        { status: 502 }
+        { error: "AI 服务暂时不可用，请稍后重试" },
+        {
+          status: response.status >= 500
+            ? 502
+            : response.status
+        }
       );
     }
 
     return Response.json({
-      answer: data.choices?.[0]?.message?.content || "暂时没有生成答案。"
+      reply: data.reply
     });
-  } catch (error) {
+  } catch {
     return Response.json(
-      { error: "请求失败，请稍后重试。" },
+      { error: "请求失败，请稍后重试" },
       { status: 500 }
     );
   }
