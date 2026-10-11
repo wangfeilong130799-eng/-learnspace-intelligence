@@ -1,111 +1,127 @@
-export async function onRequestPost(context) {
-  const { request, env } = context;
+export default {
+  async fetch(request, env) {
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization"
+    };
 
-  const WORKER_URL =
-    "https://learnspace-ai-proxy.wangfeilong130799.workers.dev/api/chat";
-
-  // 检查服务器密钥是否配置
-  if (!env.PROXY_KEY) {
-    return Response.json(
-      { error: "服务器尚未配置 PROXY_KEY，请检查 Cloudflare Pages 环境变量。" },
-      { status: 500 }
-    );
-  }
-
-  try {
-    // 解析请求
-    let body;
-
-    try {
-      body = await request.json();
-    } catch {
-      return Response.json(
-        { error: "请求格式错误，请重新输入问题。" },
-        { status: 400 }
-      );
-    }
-
-    const message = body?.message;
-
-    // 验证输入
-    if (typeof message !== "string" || !message.trim()) {
-      return Response.json(
-        { error: "请输入问题后再试。" },
-        { status: 400 }
-      );
-    }
-
-    if (message.length > 8000) {
-      return Response.json(
-        { error: "问题过长，请将内容控制在 8000 个字符以内。" },
-        { status: 400 }
-      );
-    }
-
-    // 请求 AI Worker
-    const upstreamResponse = await fetch(WORKER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${env.PROXY_KEY}`
-      },
-      body: JSON.stringify({
-        message: message.trim()
-      })
-    });
-
-    // 解析 Worker 响应
-    let data;
-
-    try {
-      data = await upstreamResponse.json();
-    } catch {
-      return Response.json(
-        { error: "AI 服务返回了无效数据，请稍后重试。" },
-        { status: 502 }
-      );
-    }
-
-    // 处理上游错误
-    if (!upstreamResponse.ok) {
-      console.error("AI Worker returned status:", upstreamResponse.status);
-
-      return Response.json(
-        {
-          error: upstreamResponse.status === 401 ||
-                upstreamResponse.status === 403
-            ? "AI 服务认证失败，请检查服务器密钥配置。"
-            : "AI 服务暂时不可用，请稍后重试。"
-        },
-        { status: 502 }
-      );
-    }
-
-    // 验证 AI 回答
-    if (typeof data.reply !== "string" || !data.reply.trim()) {
-      return Response.json(
-        { error: "AI 暂时没有返回有效回答，请重试。" },
-        { status: 502 }
-      );
-    }
-
-    // 返回前端需要的数据
-    return Response.json(
-      { reply: data.reply },
-      {
-        status: 200,
+    const json = (data, status = 200) =>
+      new Response(JSON.stringify(data), {
+        status,
         headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json; charset=utf-8",
           "Cache-Control": "no-store"
         }
+      });
+
+    // 浏览器预检请求
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders
+      });
+    }
+
+    // 检查服务状态
+    if (request.method === "GET") {
+      return json({
+        status: "online",
+        service: "LearnSpace AI Proxy"
+      });
+    }
+
+    // 只允许 POST 请求调用 AI
+    if (request.method !== "POST") {
+      return json({ error: "Method not allowed" }, 405);
+    }
+
+    // 验证代理密钥
+    if (!env.PROXY_KEY) {
+      return json({ error: "Worker 未配置 PROXY_KEY" }, 500);
+    }
+
+    const authorization = request.headers.get("Authorization");
+
+    if (authorization !== `Bearer ${env.PROXY_KEY}`) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+
+    // 验证 OpenAI 密钥
+    if (!env.OPENAI_API_KEY) {
+      return json({ error: "Worker 未配置 OPENAI_API_KEY" }, 500);
+    }
+
+    try {
+      const body = await request.json();
+      const message = body?.message;
+
+      if (typeof message !== "string" || !message.trim()) {
+        return json({ error: "请输入有效的问题" }, 400);
       }
-    );
 
-  } catch (error) {
-    console.error("Chat API error:", error);
+      if (message.length > 8000) {
+        return json({ error: "问题过长，请缩短后重试" }, 400);
+      }
 
-    return Response.json(
-      { error: "请求失败，请检查网络后重试。" },
-      { status: 500 }
-    );
+      // 调用 OpenAI
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "你是 LearnSpace Intelligence 的 AI 学习助手。请用清晰、友好、准确的中文帮助学生和教师理解知识、规划学习及改进写作。对于作业，请重视讲解思路和培养独立思考。"
+              },
+              {
+                role: "user",
+                content: message.trim()
+              }
+            ]
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // 记录错误状态，不记录密钥或用户问题
+        console.error("OpenAI request failed:", {
+          status: response.status,
+          errorType: data?.error?.type || "unknown",
+          errorCode: data?.error?.code || "unknown"
+        });
+
+        if (response.status === 401) {
+          return json({ error: "OpenAI API 密钥无效或未获授权" }, 502);
+        }
+
+        if (response.status === 429) {
+          return json({ error: "OpenAI 请求受限，请检查 API 额度或使用限制" }, 502);
+        }
+
+        return json({ error: "OpenAI 请求失败，请检查模型权限和服务状态" }, 502);
+      }
+
+      const reply = data?.choices?.[0]?.message?.content;
+
+      if (typeof reply !== "string" || !reply.trim()) {
+        return json({ error: "OpenAI 没有返回有效回答" }, 502);
+      }
+
+      return json({ reply });
+    } catch (error) {
+      console.error("Worker request failed:", error?.name || "Error");
+      return json({ error: "AI 服务请求失败，请稍后重试" }, 502);
+    }
   }
-}
+};
