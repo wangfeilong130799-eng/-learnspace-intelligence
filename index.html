@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f7f8fc">
+<title>LearnSpace Intelligence - AI 学习空间</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f7f8fc;color:#20243a}
+header{height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 7%;background:#fff;border-bottom:1px solid #eee}
+.logo{font-size:20px;font-weight:800;color:#5046e5}
+.logo span{color:#20243a}
+nav a{margin-left:24px;text-decoration:none;color:#60657b;font-size:14px}
+.hero{max-width:1080px;margin:70px auto 45px;padding:0 24px;text-align:center}
+.badge{display:inline-block;padding:8px 14px;border-radius:30px;background:#ecebff;color:#5046e5;font-size:13px}
+h1{font-size:clamp(34px,6vw,58px);line-height:1.2;letter-spacing:-1.5px;margin:25px 0 18px}
+h1 em{font-style:normal;color:#5046e5}
+.subtitle{max-width:620px;margin:auto;color:#74798c;line-height:1.9;font-size:16px}
+.search{max-width:650px;margin:32px auto 0;padding:8px;display:flex;background:#fff;border:1px solid #e4e5ef;border-radius:16px;box-shadow:0 12px 40px #25265b0d}
+.search input{flex:1;min-width:0;border:0;outline:none;padding:14px;font-size:15px;background:transparent}
+button{border:0;border-radius:11px;background:#5046e5;color:white;padding:13px 22px;font-size:15px;font-weight:600;cursor:pointer}
+.section{max-width:1080px;margin:55px auto;padding:0 24px}
+.section h2{font-size:25px;margin-bottom:8px}
+.desc{color:#85899a;font-size:14px;margin-bottom:25px}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.card{background:white;padding:25px;border:1px solid #ebecf3;border-radius:18px;transition:.2s}
+.card:hover{transform:translateY(-4px);box-shadow:0 12px 30px #25265b0d}
+.icon{font-size:27px}
+.card h3{margin:18px 0 10px;font-size:18px}
+.card p{color:#7a7f91;font-size:14px;line-height:1.8;min-height:48px}
+.card button{margin-top:10px;background:#efeeff;color:#5046e5}
+.notice{max-width:1032px;margin:0 auto 50px;padding:22px 25px;background:#eeefff;border-radius:15px;color:#55518e;line-height:1.8;font-size:14px}
+footer{text-align:center;padding:30px;color:#969aab;font-size:13px}
+#result{white-space:pre-wrap;line-height:1.8;color:#555b70;margin-top:20px;text-align:left}
+@media(max-width:700px){header{padding:0 20px}nav a{margin-left:10px;font-size:12px}.hero{margin-top:45px}.cards{grid-template-columns:1fr}.card p{min-height:0}.section{margin-top:40px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">LearnSpace <span>Intelligence</span></div>
+  <nav><a href="#tools">学习工具</a><a href="#about">关于我们</a></nav>
+</header>
+
+<main>
+<section class="hero">
+  <div class="badge">✦ 专为学习与成长打造</div>
+  <h1>让学习更高效<br><em>让灵感自由生长</em></h1>
+  <p class="subtitle">你的 AI 学习空间。探索知识、整理资料、激发灵感，让每一次学习都更有价值。</p>
+  <form class="search" id="askForm">
+    <input id="question" placeholder="输入你的学习问题或写作想法……" required>
+    <button type="submit">开始探索 →</button>
+  </form>
+  <div id="result"></div>
+</section>
+
+<section class="section" id="tools">
+  <h2>你的学习工具箱</h2>
+  <p class="desc">从理解知识到表达想法，让学习过程更加轻松。</p>
+  <div class="cards">
+    <article class="card">
+      <div class="icon">💡</div>
+      <h3>AI 学习问答</h3>
+      <p>输入不理解的知识点，梳理问题，寻找学习方向。</p>
+      <button onclick="chooseTool('请帮我理解一个知识点，并通过例子解释：')">开始提问 →</button>
+    </article>
+    <article class="card">
+      <div class="icon">✍️</div>
+      <h3>智能写作助手</h3>
+      <p>整理思路、规划文章结构、修改表达，让想法更清晰。</p>
+      <button onclick="chooseTool('请帮我规划一篇文章的提纲，主题是：')">辅助写作 →</button>
+    </article>
+    <article class="card">
+      <div class="icon">📚</div>
+      <h3>学习资料总结</h3>
+      <p>提炼重点、归纳概念、整理复习提纲，提高复习效率。</p>
+      <button onclick="chooseTool('请帮我总结以下学习资料，提炼重点：')">整理资料 →</button>
+    </article>
+  </div>
+</section>
+
+<section class="notice" id="about">
+  <strong>学习提示</strong><br>
+  本网站目前为初始演示版本，尚未连接 AI 模型。输入问题后可以查看下一步接入 AI 服务的提示。请结合教材与可靠资料核对学习内容。
+</section>
+</main>
+
+<footer>© 2026 LearnSpace Intelligence · 为每一次探索创造可能</footer>
+
+<script>
+function chooseTool(text){
+  const input=document.getElementById('question');
+  input.value=text;
+  input.focus();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.getElementById('askForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  document.getElementById('result').textContent=
+    '你的问题已准备好！当前是网站演示版本，AI 服务尚未连接。下一步可以配置安全的后端接口，让平台真正回答问题。';
+});
+</script>
+</body>
+</html>
