@@ -1,52 +1,403 @@
-<script>
-function chooseTool(text) {
-  const input = document.getElementById('question');
-  input.value = text;
-  input.focus();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-document.getElementById('askForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
-
-  const input = document.getElementById('question');
-  const result = document.getElementById('result');
-  const button = this.querySelector('button[type="submit"]');
-  const message = input.value.trim();
-
-  if (!message) {
-    result.textContent = '请先输入问题。';
-    return;
-  }
-
-  result.textContent = '正在思考，请稍候……';
-  button.disabled = true;
-
-  try {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ message: message })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'AI 服务暂时不可用，请稍后重试。');
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f7f9ff">
+  <meta name="description" content="LearnSpace Intelligence，为学生和教师打造的 AI 学习与写作助手。">
+  <title>LearnSpace Intelligence — AI 学习空间</title>
+  <style>
+    :root {
+      --primary: #5b5ce2;
+      --primary-dark: #4647c5;
+      --background: #f7f8fc;
+      --surface: #ffffff;
+      --text: #20233a;
+      --muted: #737891;
+      --border: #e8eaf4;
+      --radius: 20px;
     }
 
-    if (!data.reply) {
-      throw new Error('AI 暂时没有返回答案。');
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--background);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+        "PingFang SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.6;
     }
 
-    result.textContent = data.reply;
+    button, textarea { font: inherit; }
 
-  } catch (error) {
-    result.textContent = '连接失败：' + error.message;
-  } finally {
-    button.disabled = false;
-  }
-});
-</script>
+    button { cursor: pointer; }
+
+    .topbar {
+      height: 76px;
+      padding: 0 7%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255,255,255,.94);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 750;
+      font-size: 19px;
+      letter-spacing: -.4px;
+    }
+
+    .brand-icon {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      color: white;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #7374f5, #4546c6);
+      font-size: 23px;
+    }
+
+    .badge {
+      color: var(--primary);
+      background: #eeeeff;
+      padding: 7px 13px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    main {
+      width: min(100% - 32px, 1040px);
+      margin: 0 auto;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 76px 12px 38px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      padding: 7px 13px;
+      background: #eeeeff;
+      color: var(--primary);
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    h1 {
+      margin: 20px 0 14px;
+      font-size: clamp(34px, 6vw, 58px);
+      line-height: 1.2;
+      letter-spacing: -1.8px;
+    }
+
+    .gradient-text {
+      color: var(--primary);
+      background: linear-gradient(100deg, #5557df, #a05ce5);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      max-width: 650px;
+      margin: 0 auto;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .workspace {
+      max-width: 790px;
+      margin: 0 auto;
+      padding: 25px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 18px 60px rgba(49, 52, 110, .07);
+    }
+
+    .workspace-heading {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 19px;
+    }
+
+    .assistant-icon {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: #eeeeff;
+      font-size: 23px;
+    }
+
+    .workspace-heading h2 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .workspace-heading p {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    textarea {
+      display: block;
+      width: 100%;
+      min-height: 145px;
+      resize: vertical;
+      padding: 17px;
+      color: var(--text);
+      background: #fcfcff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(91, 92, 226, .1);
+    }
+
+    .form-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .submit-btn {
+      border: 0;
+      padding: 12px 22px;
+      color: #fff;
+      background: var(--primary);
+      border-radius: 12px;
+      font-weight: 700;
+      transition: background .2s, transform .2s;
+    }
+
+    .submit-btn:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    .submit-btn:disabled {
+      cursor: wait;
+      opacity: .65;
+      transform: none;
+    }
+
+    .result {
+      display: none;
+      margin-top: 22px;
+      padding: 20px;
+      background: #f8f8ff;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+    }
+
+    .result.visible { display: block; }
+
+    .result-title {
+      margin: 0 0 12px;
+      font-weight: 750;
+      font-size: 15px;
+    }
+
+    .result-content {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-size: 14px;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin: 35px 0 60px;
+    }
+
+    .feature {
+      padding: 22px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 17px;
+    }
+
+    .feature-icon { font-size: 26px; }
+
+    .feature h3 {
+      margin: 12px 0 6px;
+      font-size: 16px;
+    }
+
+    .feature p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    footer {
+      padding: 25px 15px 35px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 640px) {
+      .topbar { height: 66px; padding: 0 18px; }
+      .brand { font-size: 15px; gap: 8px; }
+      .brand-icon { width: 36px; height: 36px; }
+      .badge { font-size: 10px; padding: 6px 9px; }
+      .hero { padding: 52px 4px 30px; }
+      .workspace { padding: 18px; }
+      .features { grid-template-columns: 1fr; margin-bottom: 38px; }
+      .form-footer { align-items: flex-start; flex-direction: column; }
+      .submit-btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">✦</div>
+      <span>LearnSpace Intelligence</span>
+    </div>
+    <span class="badge">AI 学习空间</span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <span class="eyebrow">✧ 面向学生与教师的智能助手</span>
+      <h1>让学习变得<br><span class="gradient-text">更聪明、更高效</span></h1>
+      <p>从知识理解到写作辅助，从学习规划到灵感启发，让 AI 成为你探索知识的伙伴。</p>
+    </section>
+
+    <section class="workspace">
+      <div class="workspace-heading">
+        <div class="assistant-icon">✧</div>
+        <div>
+          <h2>AI 学习助手</h2>
+          <p>输入问题，开启你的学习之旅</p>
+        </div>
+      </div>
+
+      <form id="askForm">
+        <textarea id="question" maxlength="8000"
+          placeholder="例如：请用简单的语言解释什么是人工智能，并举出三个生活中的例子……"
+          required></textarea>
+        <div class="form-footer">
+          <span class="hint">提示：问题越具体，回答通常越有帮助。</span>
+          <button class="submit-btn" id="submitBtn" type="submit">开始提问 ↗</button>
+        </div>
+      </form>
+
+      <section class="result" id="result" aria-live="polite">
+        <h3 class="result-title" id="resultTitle">AI 回答</h3>
+        <div class="result-content" id="resultContent"></div>
+      </section>
+    </section>
+
+    <section class="features">
+      <article class="feature">
+        <div class="feature-icon">📚</div>
+        <h3>知识理解</h3>
+        <p>解释复杂概念、梳理知识重点，帮助你循序渐进地理解新知识。</p>
+      </article>
+      <article class="feature">
+        <div class="feature-icon">✍️</div>
+        <h3>写作辅助</h3>
+        <p>辅助构思、组织文章结构、优化表达，让你的写作思路更加清晰。</p>
+      </article>
+      <article class="feature">
+        <div class="feature-icon">🎯</div>
+        <h3>学习规划</h3>
+        <p>制定复习计划、拆分学习任务，让每天的学习目标更加明确。</p>
+      </article>
+    </section>
+  </main>
+
+  <footer>
+    © 2026 LearnSpace Intelligence · AI 辅助学习，保持独立思考
+  </footer>
+
+  <script>
+    (() => {
+      const form = document.getElementById("askForm");
+      const question = document.getElementById("question");
+      const button = document.getElementById("submitBtn");
+      const result = document.getElementById("result");
+      const resultTitle = document.getElementById("resultTitle");
+      const resultContent = document.getElementById("resultContent");
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const message = question.value.trim();
+        if (!message) {
+          question.focus();
+          return;
+        }
+
+        button.disabled = true;
+        button.textContent = "正在思考…";
+        result.classList.add("visible");
+        resultTitle.textContent = "AI 正在处理你的问题";
+        resultContent.textContent = "请稍候，这可能需要几秒钟。";
+
+        try {
+          const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message })
+          });
+
+          let data;
+          try {
+            data = await response.json();
+          } catch {
+            throw new Error("服务器返回了无法识别的数据，请稍后重试。");
+          }
+
+          if (!response.ok) {
+            throw new Error(data.error || "AI 服务暂时不可用，请稍后重试。");
+          }
+
+          if (typeof data.reply !== "string" || !data.reply.trim()) {
+            throw new Error("AI 没有返回有效回答，请稍后再试。");
+          }
+
+          resultTitle.textContent = "AI 回答";
+          resultContent.textContent = data.reply;
+        } catch (error) {
+          resultTitle.textContent = "暂时无法回答";
+          resultContent.textContent =
+            error.message || "网络连接失败，请检查网络后重试。";
+        } finally {
+          button.disabled = false;
+          button.textContent = "开始提问 ↗";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
